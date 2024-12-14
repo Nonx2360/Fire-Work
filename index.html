@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firework Display</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+        }
+        
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="fireworkCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('fireworkCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        class Firework {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.trail = [];
+                this.exploded = false;
+                this.explosionParticles = [];
+                this.color = Firework.randomPastelColor();
+            }
+
+            static randomPastelColor() {
+                return `rgba(${200 + Math.random() * 55}, ${200 + Math.random() * 55}, ${200 + Math.random() * 55}, 1)`;
+            }
+
+            update() {
+                if (!this.exploded) {
+                    const dx = this.targetX - this.x;
+                    const dy = this.targetY - this.y;
+                    this.x += dx * 0.05; // Slow down the firework movement
+                    this.y += dy * 0.05;
+                    this.trail.push({
+                        x: this.x,
+                        y: this.y
+                    });
+
+                    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+                        this.explode();
+                    }
+
+                    if (this.trail.length > 10) this.trail.shift();
+                } else {
+                    this.explosionParticles.forEach((particle) => particle.update());
+                }
+            }
+
+            explode() {
+                this.exploded = true;
+                for (let i = 0; i < 100; i++) { // Increase particle count for larger explosion
+                    this.explosionParticles.push(new Particle(this.x, this.y, this.color)); // Use the same color as the trail
+                }
+            }
+
+            draw() {
+                if (!this.exploded) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0] ? this.trail[0].x : this.x, this.trail[0] ? this.trail[0].y : this.y);
+                    this.trail.forEach((point) => {
+                        ctx.lineTo(point.x, point.y);
+                    });
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 4; // Increase trail width
+                    ctx.stroke();
+                } else {
+                    this.explosionParticles.forEach((particle) => particle.draw());
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.angle = Math.random() * 2 * Math.PI;
+                this.speed = Math.random() * 4 + 1; // Increase randomness in speed
+                this.gravity = 0.05; // Add gravity effect
+                this.life = 150; // Increase particle lifetime
+                this.decay = Math.random() * 0.015 + 0.005; // Random decay rate
+            }
+
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed + this.gravity; // Gravity pulls particles down
+                this.speed *= 0.98; // Slow down particles over time
+                this.life -= this.decay * 100;
+            }
+
+            draw() {
+                if (this.life > 0) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 2, 0, 2 * Math.PI); // Adjust particle size
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = Math.max(this.life / 150, 0); // Fade out over time
+                    ctx.fill();
+                    ctx.globalAlpha = 1; // Reset alpha
+                }
+            }
+        }
+
+        const fireworks = [];
+
+        canvas.addEventListener('click', (event) => {
+            const x = event.clientX;
+            const y = canvas.height;
+            const targetX = event.clientX;
+            const targetY = event.clientY;
+            fireworks.push(new Firework(x, y, targetX, targetY));
+        });
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            fireworks.forEach((firework, index) => {
+                firework.update();
+                firework.draw();
+
+                if (firework.exploded && firework.explosionParticles.every((p) => p.life <= 0)) {
+                    fireworks.splice(index, 1);
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
